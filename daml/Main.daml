@@ -3,7 +3,7 @@ module Main where
 import Daml.Script
 
 type AssetId = ContractId Asset
-
+-- Create Smart Conctract template 
 template Asset
   with
     issuer : Party 
