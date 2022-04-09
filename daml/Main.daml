@@ -1,0 +1,76 @@
+module Main where
+
+import Daml.Script
+
+type AssetId = ContractId Asset
+
+template Asset
+  with
+    issuer : Party
+    owner  : Party
+    processo   : Text
+  where
+    ensure processo /= ""
+    signatory issuer
+    observer owner
+    
+    choice TransferirCarne : AssetId
+      with
+        newOwner : Party
+        novoNome : Text
+      controller owner
+      do create this with
+           owner = newOwner
+           processo = novoNome
+
+setup : Script AssetId
+setup = script do
+-- user_setup_begin
+  agricultor <- allocatePartyWithHint "Agricultor" (PartyIdHint "Agricultor")
+  matadouro <- allocatePartyWithHint "Matadouro" (PartyIdHint "Matadouro")
+  transporte <- allocatePartyWithHint "Transporte" (PartyIdHint "Transporte")
+  retalho <- allocatePartyWithHint "Retalho" (PartyIdHint "Retalho")
+  clienteFinal <- allocatePartyWithHint "Pedro" (PartyIdHint "Pedro")
+
+  agricultorId <- validateUserId "agricultor"
+  matadouroId <- validateUserId "matadouro"
+  transporteId <- validateUserId "transporte"
+  retalhoId <- validateUserId "retalho"
+  
+  clientefinalId <- validateUserId "clientefinal"
+
+  createUser (User agricultorId (Some agricultor)) [CanActAs agricultor]
+  createUser (User matadouroId (Some matadouro)) [CanActAs matadouro]
+  createUser (User transporteId (Some transporte)) [CanActAs transporte]
+  createUser (User retalhoId (Some retalho)) [CanActAs retalho]
+  createUser (User clientefinalId (Some clienteFinal)) [CanActAs clienteFinal]
+-- user_setup_end
+
+  agricultorCarne <- submit agricultor do
+    createCmd Asset with
+      issuer = agricultor
+      owner = agricultor
+      processo = "Envio do porco"
+
+  matadouroGetCarne <- submit agricultor do
+    exerciseCmd agricultorCarne TransferirCarne
+     with newOwner = matadouro, novoNome = "Porco Vivo"
+
+  transporteCarne <- submit matadouro do
+    exerciseCmd matadouroGetCarne TransferirCarne 
+      with newOwner = transporte, novoNome =  "Porco Morto"
+
+  retalhoCarne <- submit transporte do
+    exerciseCmd transporteCarne TransferirCarne 
+      with newOwner = retalho, novoNome =  "Peças de Carne embaladas para venda"
+
+  -- clienteCarne <- submit clienteFinal do
+  --   createCmd Asset with
+  --     issuer = clienteFinal
+  --     owner = clienteFinal
+  --     processo = "Cliente toma posse da peça de carne e observa o histórico"
+
+  submit retalho do
+    exerciseCmd retalhoCarne TransferirCarne 
+      with newOwner = clienteFinal, novoNome =  "Peças de carne comprada"
+
