@@ -6,7 +6,7 @@ type AssetId = ContractId Asset
 
 template Asset
   with
-    issuer : Party
+    issuer : Party 
     owner  : Party
     processo   : Text
   where
