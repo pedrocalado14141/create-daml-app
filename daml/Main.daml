@@ -55,15 +55,15 @@ setup = script do
 
   matadouroGetCarne <- submit agricultor do
     exerciseCmd agricultorCarne TransferirCarne
-     with newOwner = matadouro, novoNome = "Porco Vivo"
+     with newOwner = matadouro, novoNome = "Porco morto"
 
   transporteCarne <- submit matadouro do
     exerciseCmd matadouroGetCarne TransferirCarne 
-      with newOwner = transporte, novoNome =  "Porco Morto"
+      with newOwner = transporte, novoNome =  "Porco embalado por peças"
 
   retalhoCarne <- submit transporte do
     exerciseCmd transporteCarne TransferirCarne 
-      with newOwner = retalho, novoNome =  "Peças de Carne embaladas para venda"
+      with newOwner = retalho, novoNome =  "Peças de Carne para venda"
 
   -- clienteCarne <- submit clienteFinal do
   --   createCmd Asset with
