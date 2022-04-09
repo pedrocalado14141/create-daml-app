@@ -25,6 +25,7 @@ template Asset
 
 setup : Script AssetId
 setup = script do
+
 -- user_setup_begin
   agricultor <- allocatePartyWithHint "Agricultor" (PartyIdHint "Agricultor")
   matadouro <- allocatePartyWithHint "Matadouro" (PartyIdHint "Matadouro")
