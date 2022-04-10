@@ -31,7 +31,7 @@ setup = script do
   matadouro <- allocatePartyWithHint "Matadouro" (PartyIdHint "Matadouro")
   transporte <- allocatePartyWithHint "Transporte" (PartyIdHint "Transporte")
   retalho <- allocatePartyWithHint "Retalho" (PartyIdHint "Retalho")
-  clienteFinal <- allocatePartyWithHint "Pedro" (PartyIdHint "Pedro")
+  clienteFinal <- allocatePartyWithHint "Consumidor" (PartyIdHint "Consumidor")
 
   agricultorId <- validateUserId "agricultor"
   matadouroId <- validateUserId "matadouro"
