@@ -17,11 +17,11 @@ template Asset
     choice TransferirCarne : AssetId
       with
         newOwner : Party
-        novoNome : Text
+        novoProcesso : Text
       controller owner
       do create this with
            owner = newOwner
-           processo = novoNome
+           processo = novoProcesso
 
 setup : Script AssetId
 setup = script do
@@ -51,19 +51,19 @@ setup = script do
     createCmd Asset with
       issuer = agricultor
       owner = agricultor
-      processo = "Envio do porco"
+      processo = "Registo do animal"
 
   matadouroGetCarne <- submit agricultor do
     exerciseCmd agricultorCarne TransferirCarne
-     with newOwner = matadouro, novoNome = "Porco morto"
+     with newOwner = matadouro, novoProcesso = "Transformação do animal"
 
   transporteCarne <- submit matadouro do
     exerciseCmd matadouroGetCarne TransferirCarne 
-      with newOwner = transporte, novoNome =  "Porco embalado por peças"
+      with newOwner = transporte, novoProcesso =  "Entrega do animal já processado"
 
   retalhoCarne <- submit transporte do
     exerciseCmd transporteCarne TransferirCarne 
-      with newOwner = retalho, novoNome =  "Peças de Carne para venda"
+      with newOwner = retalho, novoProcesso =  "Peças de Carne para venda"
 
   -- clienteCarne <- submit clienteFinal do
   --   createCmd Asset with
@@ -73,5 +73,5 @@ setup = script do
 
   submit retalho do
     exerciseCmd retalhoCarne TransferirCarne 
-      with newOwner = clienteFinal, novoNome =  "Peças de carne comprada"
+      with newOwner = clienteFinal, novoProcesso =  "Cliente toma posse da peça de carne e observa o histórico"
 
