@@ -3,25 +3,37 @@ module Main where
 import Daml.Script
 
 type AssetId = ContractId Asset
--- Create Smart Conctract template 
+-- Create Smart Contract template 
+-- Set the variables of the template
+-- ensure the "process" variable is not null
+-- signatory issuer
+-- observer owner 
+-- Method TransferirCarne that will transfer the meat through the partys 
+    -- assign the newOwner and newProcess
+-- party public tem de conhecer todos os contratos - consumidor
+-- criar mais templates, fundos para se candidatar , partilhar info sobre asset
+
 template Asset
   with
     issuer : Party 
     owner  : Party
-    processo   : Text
+    inspector  : Party
+    process   : Text
+    pegadaEcologica   : Int
   where
-    ensure processo /= ""
+    ensure process /= ""
     signatory issuer
     observer owner
+    observer inspector
     
     choice TransferirCarne : AssetId
       with
         newOwner : Party
-        novoProcesso : Text
+        newProcess : Text
       controller owner
       do create this with
            owner = newOwner
-           processo = novoProcesso
+           process = newProcess
 
 setup : Script AssetId
 setup = script do
@@ -37,7 +49,6 @@ setup = script do
   matadouroId <- validateUserId "matadouro"
   transporteId <- validateUserId "transporte"
   retalhoId <- validateUserId "retalho"
-  
   clientefinalId <- validateUserId "clientefinal"
 
   createUser (User agricultorId (Some agricultor)) [CanActAs agricultor]
@@ -51,27 +62,29 @@ setup = script do
     createCmd Asset with
       issuer = agricultor
       owner = agricultor
-      processo = "Registo do animal"
+      process = "Registo do animal"
+      pegadaEcologica = 0
+      inspector = agricultor
 
   matadouroGetCarne <- submit agricultor do
     exerciseCmd agricultorCarne TransferirCarne
-     with newOwner = matadouro, novoProcesso = "Transformação do animal"
+     with newOwner = matadouro, newProcess = "Transformação do animal"
 
   transporteCarne <- submit matadouro do
     exerciseCmd matadouroGetCarne TransferirCarne 
-      with newOwner = transporte, novoProcesso =  "Entrega do animal já processado"
+      with newOwner = transporte, newProcess =  "Entrega do animal já processado"
 
   retalhoCarne <- submit transporte do
     exerciseCmd transporteCarne TransferirCarne 
-      with newOwner = retalho, novoProcesso =  "Peças de Carne para venda"
+      with newOwner = retalho, newProcess =  "Peças de Carne para venda"
 
   -- clienteCarne <- submit clienteFinal do
   --   createCmd Asset with
   --     issuer = clienteFinal
   --     owner = clienteFinal
-  --     processo = "Cliente toma posse da peça de carne e observa o histórico"
+  --     process = "Cliente toma posse da peça de carne e observa o histórico"
 
   submit retalho do
     exerciseCmd retalhoCarne TransferirCarne 
-      with newOwner = clienteFinal, novoProcesso =  "Cliente toma posse da peça de carne e observa o histórico"
+      with newOwner = clienteFinal, newProcess =  "Cliente toma posse da peça de carne e observa o histórico"
 
