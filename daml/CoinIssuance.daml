@@ -1,0 +1,168 @@
+-- The Initiate and Accept pattern demonstrates how to start a bilateral workflow.
+-- One party initiates by creating a proposal or an invite contract. 
+-- This gives another party the chance to accept, reject or renegotiate.
+
+{-# LANGUAGE PartialTypeSignatures #-}
+
+
+module CoinIssuance where
+
+import Daml.Script
+
+import DA.Time
+import Utilities
+
+-- BEGIN_COIN_ISSUER
+template CoinMaster
+  with
+    issuer: Party
+  where
+    signatory issuer
+
+    nonconsuming choice Invite : ContractId CoinIssueProposal
+      with owner: Party
+      controller issuer
+      do create CoinIssueProposal
+            with coinAgreement = CoinIssueAgreement with issuer; owner
+-- END_COIN_ISSUER
+
+--the initiate/accept pattern moves the workflow forward
+-- The CoinIssueProposal contract has Issuer as the signatory, 
+    -- and Owner as the controller to the Accept choice.
+-- BEGIN_COIN_ISSUE_PROPOSAL
+template CoinIssueProposal
+  with
+    coinAgreement: CoinIssueAgreement
+  where
+    signatory coinAgreement.issuer
+    observer coinAgreement.owner
+
+    choice AcceptCoinProposal
+      : ContractId CoinIssueAgreement
+      controller coinAgreement.owner
+      do create coinAgreement
+-- END_COIN_ISSUE_PROPOSAL
+
+--the result contract of Initiate/Accept pattern
+-- BEGIN_COIN_ISSUE_AGREEMENT
+
+template CoinIssueAgreement
+  with
+    issuer: Party
+    owner: Party
+  where
+    signatory issuer, owner
+--nonconsuming Useful in the many situations when you want to be able to exercise a choice more than once.
+    nonconsuming choice Issue : ContractId Coin
+      with 
+        amount: Decimal
+        currency: Text
+        description: Text
+      controller issuer
+      do create Coin with issuer; owner; amount; currency;description
+-- END_COIN_ISSUE_AGREEMENT
+
+
+--the original contract
+-- BEGIN_COIN_TEMPLATE_DATATYPE
+template Coin
+  with
+    owner: Party
+    issuer: Party
+    amount: Decimal
+    currency: Text
+    description: Text
+  where
+    signatory issuer, owner
+-- END_COIN_TEMPLATE_DATATYPE
+
+-- BEGIN_COIN_TEMPLATE_TRANSFER
+    choice Transfer : ContractId TransferProposal
+      with newOwner: Party
+      controller owner
+      do
+          create TransferProposal
+            with coin=this; newOwner
+-- END_COIN_TEMPLATE_TRANSFER
+
+--TransferProposal
+template TransferProposal
+  with
+    coin: Coin
+    newOwner: Party
+  where
+    signatory coin.owner, coin.issuer
+    observer newOwner
+
+    choice WithdrawProposal
+      : ContractId Coin
+      controller coin.owner
+      do create coin
+
+    choice AcceptTransfer
+      : ContractId Coin
+      controller newOwner
+      do create coin with owner = newOwner
+
+    choice RejectTransfer
+      : ()
+      controller newOwner
+      do return ()
+
+createCoin : Party -> Party -> Decimal -> Text -> Text -> Script (ContractId Coin)
+createCoin issuer owner amount currency description =
+  do
+    masterId <- issuer `submit` createCmd CoinMaster with issuer
+    coinAgmProp <- issuer `submit` exerciseCmd masterId Invite with owner
+    coinAgmId <- owner `submit` exerciseCmd coinAgmProp AcceptCoinProposal
+    coinId <- issuer `submit` exerciseCmd coinAgmId Issue with amount, currency,description
+    return coinId
+
+coinIssuance : Script (ContractId TransferProposal)  -- test
+coinIssuance =
+  script
+    do
+
+      [issuer, owner, newOwner] <- makePartiesFrom ["Bank", "Me", "Company"]
+      passTime (days 0)
+      now <- getTime
+      --CoinMaster
+      masterId <- issuer `submit` 
+        do createCmd CoinMaster 
+            with issuer
+
+      coinAgmProp <- issuer `submit` 
+        do exerciseCmd masterId Invite 
+            with owner
+
+      coinAgmId <- owner `submit` 
+        do exerciseCmd coinAgmProp AcceptCoinProposal
+
+      coinId <- issuer `submit` 
+        do exerciseCmd coinAgmId Issue 
+            with amount = 100.0, currency = "Euro", description = "Empresa com elevada pegáda ecológica recebe 2% do fundo"
+
+      --Coin transfer test
+      coinTransferPropId <- owner `submit`
+       do exerciseCmd coinId Transfer with newOwner
+       
+      coinId <- newOwner `submit`
+       do exerciseCmd coinTransferPropId AcceptTransfer
+
+      newOwner `submit` 
+        do exerciseCmd coinId Transfer with newOwner=owner
+
+
+      coinId <- issuer `submit` 
+        do exerciseCmd coinAgmId Issue 
+            with amount = 1000.0, currency = "Euro", description =  "Empresa com baixa pegáda ecológica recebe 20% do fundo"
+
+      --Coin transfer test
+      coinTransferPropId <- owner `submit`
+       do exerciseCmd coinId Transfer with newOwner
+       
+      coinId <- newOwner `submit`
+       do exerciseCmd coinTransferPropId AcceptTransfer
+
+      newOwner `submit` 
+        do exerciseCmd coinId Transfer with newOwner=owner
