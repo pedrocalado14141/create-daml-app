@@ -2,9 +2,6 @@
 -- One party initiates by creating a proposal or an invite contract. 
 -- This gives another party the chance to accept, reject or renegotiate.
 
-{-# LANGUAGE PartialTypeSignatures #-}
-
-
 module CoinIssuance where
 
 import Daml.Script
@@ -140,7 +137,8 @@ coinIssuance =
 
       coinId <- issuer `submit` 
         do exerciseCmd coinAgmId Issue 
-            with amount = 100.0, currency = "Euro", description = "Empresa com elevada pegáda ecológica recebe 2% do fundo"
+            with amount = 200.0, currency = "Euro", 
+                  description = "Empresa com elevada pegáda ecológica recebe 2% do fundo"
 
       --Coin transfer test
       coinTransferPropId <- owner `submit`
@@ -155,7 +153,8 @@ coinIssuance =
 
       coinId <- issuer `submit` 
         do exerciseCmd coinAgmId Issue 
-            with amount = 1000.0, currency = "Euro", description =  "Empresa com baixa pegáda ecológica recebe 20% do fundo"
+            with amount = 1000.0, currency = "Euro", 
+                  description =  "Empresa com baixa pegáda ecológica recebe 20% do fundo"
 
       --Coin transfer test
       coinTransferPropId <- owner `submit`

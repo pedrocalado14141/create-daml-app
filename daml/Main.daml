@@ -40,18 +40,21 @@ setup = script do
 
 -- user_setup_begin
   agricultor <- allocatePartyWithHint "Agricultor" (PartyIdHint "Agricultor")
+  inspector <- allocatePartyWithHint "Inspector" (PartyIdHint "Inspector")
   matadouro <- allocatePartyWithHint "Matadouro" (PartyIdHint "Matadouro")
   transporte <- allocatePartyWithHint "Transporte" (PartyIdHint "Transporte")
   retalho <- allocatePartyWithHint "Retalho" (PartyIdHint "Retalho")
   clienteFinal <- allocatePartyWithHint "Consumidor" (PartyIdHint "Consumidor")
 
   agricultorId <- validateUserId "agricultor"
+  inspectorId <- validateUserId "inspector"
   matadouroId <- validateUserId "matadouro"
   transporteId <- validateUserId "transporte"
   retalhoId <- validateUserId "retalho"
   clientefinalId <- validateUserId "clientefinal"
 
   createUser (User agricultorId (Some agricultor)) [CanActAs agricultor]
+  createUser (User inspectorId (Some inspector)) [CanActAs inspector]
   createUser (User matadouroId (Some matadouro)) [CanActAs matadouro]
   createUser (User transporteId (Some transporte)) [CanActAs transporte]
   createUser (User retalhoId (Some retalho)) [CanActAs retalho]
@@ -63,8 +66,8 @@ setup = script do
       issuer = agricultor
       owner = agricultor
       process = "Registo do animal"
-      pegadaEcologica = 0
-      inspector = agricultor
+      pegadaEcologica = 50
+      inspector = inspector
 
   matadouroGetCarne <- submit agricultor do
     exerciseCmd agricultorCarne TransferirCarne

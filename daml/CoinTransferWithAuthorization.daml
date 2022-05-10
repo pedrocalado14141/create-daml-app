@@ -1,0 +1,151 @@
+-- Copyright (c) 2022 Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved.
+-- SPDX-License-Identifier: Apache-2.0
+{-# LANGUAGE PartialTypeSignatures #-}
+
+
+module CoinTransferWithAuthorization where
+
+import Daml.Script
+
+import Utilities
+--authorization contract allows more control on a choice
+--in the example below, issuer grants access to the newOwner. which is checked on Accept choice to ensure he is legit coin owner.
+
+-- original contract with no changes needed.
+template Coin
+  with
+    owner: Party
+    issuer: Party
+    amount: Decimal
+    currency: Text
+  where
+    signatory issuer
+    signatory owner
+
+    ensure amount > 0.0
+
+    choice Transfer : ContractId TransferProposal
+      with newOwner: Party
+      controller owner
+      do create TransferProposal
+            with coin=this; newOwner
+
+template CoinProposal
+  with
+    owner: Party
+    issuer: Party
+    amount: Decimal
+    currency: Text
+  where
+    signatory issuer
+    observer owner
+
+    choice AcceptProposal
+      : ContractId Coin
+      controller owner
+      do create Coin with issuer; owner; amount; currency
+
+
+-- authorization contract
+-- BEGIN_COIN_OWNER_AUTH_TEMPLATE
+template CoinOwnerAuthorization
+  with
+    owner: Party
+    issuer: Party
+  where
+    signatory issuer
+    observer owner
+
+    choice WithdrawAuthorization
+      : ()
+      controller issuer
+      do return ()
+-- END_COIN_OWNER_AUTH_TEMPLATE
+
+-- TransferProposal contract needs additional logic to ensure the newOwner is authorized to exercise Accept
+template TransferProposal
+  with
+    coin: Coin
+    newOwner: Party
+  where
+    signatory coin.owner
+    signatory coin.issuer
+    observer newOwner
+-- BEGIN_ACCEPT_COIN_TRANSFER
+    choice AcceptTransfer
+      : ContractId Coin
+      with token: ContractId CoinOwnerAuthorization
+      controller newOwner
+      do
+        t <- fetch token
+        assert (coin.issuer == t.issuer)
+        assert (newOwner == t.owner)
+        create coin with owner = newOwner
+
+    choice RejectTransfer
+      : ()
+      controller newOwner
+      do return ()
+-- END_ACCEPT_COIN_TRANSFER
+
+
+-- S, the party sees the contract because they are a signatory on the contract.
+-- O, the party sees the contract because they are an observer on the contract.
+-- W, the party sees the contract because they witnessed the creation of this contract, 
+        -- e.g., because they are an actor on the exercise that created it.
+-- D, the party sees the contract because they have been divulged the contract, e.g.,
+        --  e.g., because they witnessed an exercise that resulted in a fetch of this contract.
+
+tokenAccept : Script ()  -- test
+tokenAccept =
+  script do
+
+    [issuer, owner, newOwner] <- makePartiesFrom ["Bank", "Me", "You"]
+
+    --test 1: token is active, allowing new owner to accept
+
+    creatProp <- issuer `submit` 
+      do createCmd CoinProposal with owner; issuer; amount=1000.0, currency = "Euro"
+    coinId <- owner `submit` do exerciseCmd creatProp AcceptProposal
+    coinProp <- owner `submit` do exerciseCmd coinId Transfer with newOwner
+
+    -- criar um tokenId para ser possivel efetuar a transação 
+        -- depois de verificadas se todas as normais de pegáda ecologica são cumpridas
+    tokenId <- issuer `submit`
+     do createCmd CoinOwnerAuthorization
+         with owner = newOwner; issuer
+    -- Estando o newOwner em conformidade com as normas, é-lhe passado o tokenId gerado 
+    newOwner `submit`
+     do exerciseCmd coinProp AcceptTransfer
+         with token = tokenId
+    --O Issuer tem de autorizar a transação do montante €
+    issuer `submit` do exerciseCmd tokenId WithdrawAuthorization
+
+
+    creatProp <- issuer `submit` 
+      do createCmd CoinProposal with owner; issuer; amount=3000.0, currency = "Euro"
+    coinId <- owner `submit` do exerciseCmd creatProp AcceptProposal
+    coinProp <- owner `submit` do exerciseCmd coinId Transfer with newOwner
+ 
+    tokenId <- issuer `submit` do createCmd CoinOwnerAuthorization with owner = newOwner; issuer  
+    -- Descomentar uma das opções de RejectTransfer ou AcceptTransfer  
+    -- newOwner `submit` do exerciseCmd coinProp RejectTransfer
+    -- newOwner `submit` do exerciseCmd coinProp AcceptTransfer with token = tokenId
+    -- issuer `submit` do exerciseCmd tokenId WithdrawAuthorization
+
+
+
+
+    --test 2: token is withdraw before new owner accpet. Hence the accept will fail
+    creatProp <- issuer `submit`
+     do createCmd CoinProposal with owner; issuer; amount=20000.0, currency = "Euro"
+    coinId <- owner `submit` do exerciseCmd creatProp AcceptProposal
+    coinProp <- owner `submit` do exerciseCmd coinId Transfer with newOwner
+
+    tokenId <- issuer `submit` do createCmd CoinOwnerAuthorization with owner = newOwner; issuer
+    --3º a descomentar para aceoitar a transação do montante €
+    newOwner `submit` do exerciseCmd coinProp AcceptTransfer with token = tokenId
+    issuer `submit` do exerciseCmd tokenId WithdrawAuthorization
+    newOwner `submitMustFail` do exerciseCmd coinProp AcceptTransfer with token = tokenId
+    
+
