@@ -4,7 +4,7 @@
 sdk-version: 2.0.0
 name: create-daml-app
 source: daml
-init-script: FundingPayment:setup
+init-script: Main:setup
 version: 0.0.1
 dependencies:
   - daml-prim
